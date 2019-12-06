@@ -90,16 +90,30 @@ public class Main {
                 .collect(Collectors.toList());
     }
 
-    private static List<Position> findIntersections(List<Position> wire1Path, List<Position> wire2Path) {
+    private static class IntersectionResult {
+        public Position intersection;
+        public int distance;
 
-        List<Position> intersections = new LinkedList<Position>();
-        for (final Position w1pos : wire1Path) {
+        public IntersectionResult(Position i, int d) {
+            this.intersection = i;
+            this.distance = d;
+        }
+    }
 
+    private static List<IntersectionResult> findIntersections(List<Position> wire1Path, List<Position> wire2Path) {
+
+        List<IntersectionResult> intersections = new LinkedList<IntersectionResult>();
+        for (int w1 = 0; w1 < wire1Path.size(); ++w1) {
+            final Position w1pos = wire1Path.get(w1);
+            final int ww1 = w1;
             // parallelize
             Runnable task = () -> {
-                for (Position w2pos : wire2Path) {
+                for (int w2 = 0; w2 < wire2Path.size(); ++w2) {
+                    final Position w2pos = wire2Path.get(w2);
+
                     if (w1pos.equals(w2pos)) {
-                        intersections.add(w1pos);
+                        // add 2 for both 0,0 positions
+                        intersections.add(new IntersectionResult(w1pos, 2 + ww1 + w2));
                         System.out.println("Found intersection " + w1pos);
                     }
                 }
@@ -119,19 +133,19 @@ public class Main {
         List<Move> wire2 = mapToMoves(wires.get(1));
         List<Position> wire1Path = getPathFromWire(wire1);
         List<Position> wire2Path = getPathFromWire(wire2);
-        List<Position> intersections = findIntersections(wire1Path, wire2Path);
+
+        System.out.println("Finding intersections");
+        List<IntersectionResult> intersections = findIntersections(wire1Path, wire2Path);
 
         System.out.println("Minimum Manhattan Distance " + findMinimumDistance(intersections));
-
     }
 
-    private static int findMinimumDistance(List<Position> intersections) {
+    private static int findMinimumDistance(List<IntersectionResult> intersections) {
         int minDistance = Integer.MAX_VALUE;
 
-        for (Position p : intersections) {
-            int dist = Math.abs(p.x) + Math.abs(p.y);
-            if (dist < minDistance) {
-                minDistance = dist;
+        for (IntersectionResult ir : intersections) {
+            if (ir.distance < minDistance) {
+                minDistance = ir.distance;
             }
         }
         return minDistance;
