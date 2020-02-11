@@ -2,16 +2,20 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.stream.Collectors;
 
 public class Main {
+
+    private static ThreadPoolExecutor executor = (ThreadPoolExecutor) Executors.newFixedThreadPool(30);
 
     private static class Position {
 
         public int x;
         public int y;
 
-        public Position(int x, int y) {
+        public Position(final int x, final int y) {
             this.x = x;
             this.y = y;
         }
@@ -20,7 +24,7 @@ public class Main {
             return String.format("[%d, %d]", this.x, this.y);
         }
 
-        public boolean equals(Position other) {
+        public boolean equals(final Position other) {
             return this.x == other.x && this.y == other.y;
         }
     }
@@ -28,19 +32,19 @@ public class Main {
     private static enum MovementDirection {
         Left(-1, 0), Right(1, 0), Up(0, 1), Down(0, -1);
 
-        private MovementDirection(int x, int y) {
+        private MovementDirection(final int x, final int y) {
             this.x = x;
             this.y = y;
         }
 
-        private int x;
-        private int y;
+        private final int x;
+        private final int y;
 
-        public Position next(Position current) {
+        public Position next(final Position current) {
             return new Position(current.x + this.x, current.y + this.y);
         }
 
-        public static MovementDirection fromString(String input) {
+        public static MovementDirection fromString(final String input) {
             return switch (input) {
             case "L" -> MovementDirection.Left;
             case "U" -> MovementDirection.Up;
@@ -53,17 +57,17 @@ public class Main {
     }
 
     private static class Move {
-        private MovementDirection movementDirection;
-        private int steps;
+        private final MovementDirection movementDirection;
+        private final int steps;
 
-        public Move(MovementDirection d, int steps) {
+        public Move(final MovementDirection d, final int steps) {
             this.movementDirection = d;
             this.steps = steps;
         }
     }
 
-    public static List<Position> yieldSteps(Position currentPosition, Move move) {
-        List<Position> stepsToYield = new ArrayList<Position>();
+    public static List<Position> yieldSteps(Position currentPosition, final Move move) {
+        final List<Position> stepsToYield = new ArrayList<Position>();
         for (int i = 0; i < move.steps; ++i) {
             currentPosition = move.movementDirection.next(currentPosition);
             stepsToYield.add(currentPosition);
@@ -71,11 +75,11 @@ public class Main {
         return stepsToYield;
     }
 
-    public static List<Position> getPathFromWire(List<Move> moves) {
-        List<Position> path = new LinkedList<Position>();
+    public static List<Position> getPathFromWire(final List<Move> moves) {
+        final List<Position> path = new LinkedList<Position>();
         Position currentPosition = new Position(0, 0);
 
-        for (Move move : moves) {
+        for (final Move move : moves) {
             path.addAll(yieldSteps(currentPosition, move));
             // set last position as new currentPosition
             currentPosition = path.get(path.size() - 1);
@@ -84,7 +88,7 @@ public class Main {
         return path;
     }
 
-    private static List<Move> mapToMoves(String wire) {
+    private static List<Move> mapToMoves(final String wire) {
         return Arrays.asList(wire.split(",")).stream()
                 .map(s -> new Move(MovementDirection.fromString(s.substring(0, 1)), Integer.parseInt(s.substring(1))))
                 .collect(Collectors.toList());
@@ -94,20 +98,21 @@ public class Main {
         public Position intersection;
         public int distance;
 
-        public IntersectionResult(Position i, int d) {
+        public IntersectionResult(final Position i, final int d) {
             this.intersection = i;
             this.distance = d;
         }
     }
 
-    private static List<IntersectionResult> findIntersections(List<Position> wire1Path, List<Position> wire2Path) {
+    private static List<IntersectionResult> findIntersections(final List<Position> wire1Path,
+            final List<Position> wire2Path) {
 
-        List<IntersectionResult> intersections = new LinkedList<IntersectionResult>();
+        final List<IntersectionResult> intersections = new LinkedList<IntersectionResult>();
         for (int w1 = 0; w1 < wire1Path.size(); ++w1) {
             final Position w1pos = wire1Path.get(w1);
             final int ww1 = w1;
             // parallelize
-            Runnable task = () -> {
+            final Runnable task = () -> {
                 for (int w2 = 0; w2 < wire2Path.size(); ++w2) {
                     final Position w2pos = wire2Path.get(w2);
 
@@ -119,31 +124,30 @@ public class Main {
                 }
             };
             task.run();
-            Thread thread = new Thread(task);
-            thread.start();
+            executor.execute(task);
 
         }
         return intersections;
     }
 
-    public static void main(String[] args) {
+    public static void main(final String[] args) {
 
-        List<String> wires = Helper.readListFromFile("input.txt");
-        List<Move> wire1 = mapToMoves(wires.get(0));
-        List<Move> wire2 = mapToMoves(wires.get(1));
-        List<Position> wire1Path = getPathFromWire(wire1);
-        List<Position> wire2Path = getPathFromWire(wire2);
+        final List<String> wires = Helper.readListFromFile("input.txt");
+        final List<Move> wire1 = mapToMoves(wires.get(0));
+        final List<Move> wire2 = mapToMoves(wires.get(1));
+        final List<Position> wire1Path = getPathFromWire(wire1);
+        final List<Position> wire2Path = getPathFromWire(wire2);
 
         System.out.println("Finding intersections");
-        List<IntersectionResult> intersections = findIntersections(wire1Path, wire2Path);
+        final List<IntersectionResult> intersections = findIntersections(wire1Path, wire2Path);
 
         System.out.println("Minimum Manhattan Distance " + findMinimumDistance(intersections));
     }
 
-    private static int findMinimumDistance(List<IntersectionResult> intersections) {
+    private static int findMinimumDistance(final List<IntersectionResult> intersections) {
         int minDistance = Integer.MAX_VALUE;
 
-        for (IntersectionResult ir : intersections) {
+        for (final IntersectionResult ir : intersections) {
             if (ir.distance < minDistance) {
                 minDistance = ir.distance;
             }
